@@ -4,11 +4,22 @@ const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
 const cookieParser = require('cookie-parser');
 
-const urlDatabase = {
-  // "b2xVn2": "http://www.lighthouselabs.ca",
-  // "9sm5xK": "http://www.google.com"
+const urlDatabase = {};
+
+const users = { 
+  "userRandomID": {
+    id: "userRandomID", 
+    email: "user@example.com", 
+    password: "purple-monkey-dinosaur"
+  },
+ "user2RandomID": {
+    id: "user2RandomID", 
+    email: "user2@example.com", 
+    password: "dishwasher-funk"
+  }
 };
-console.log(urlDatabase);
+
+//console.log(users["userRandomID"]["id"])
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
@@ -29,23 +40,30 @@ app.get("/urls.json", (req, res) => {
 app.get("/urls", (req, res) => {
   const templateVars = { 
     urls: urlDatabase,
-    username: req.cookies["username"] 
+    user: users[req.cookies["user_id"]]
   };
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
   const templateVars = { 
-    username: req.cookies["username"] 
+    user: users[req.cookies["user_id"]]
   };
   res.render("urls_new", templateVars);
+});
+
+app.get("/urls/register", (req, res) => {
+  const templateVars = { 
+    user: users[req.cookies["user_id"]]
+  };
+  res.render("urls_registration", templateVars);
 });
 
 app.get("/urls/:shortURL", (req, res) => {
   const templateVars = { 
     shortURL: req.params.shortURL, 
     longURL: urlDatabase[req.params.shortURL],
-    username: req.cookies["username"] 
+    user: users[req.cookies["user_id"]]
   };
   res.render("urls_show", templateVars);
 });
@@ -87,6 +105,19 @@ app.post("/logout", (req, res) => {
   res.clearCookie('username');
   res.redirect("/urls");
   //console.log(req.cookies["username"] )
+});
+
+// Register
+app.post("/register", (req, res) => {
+  const userID = generateRandomString();
+  users[userID]= {
+    id: userID,
+    email: req.body.email,
+    password: req.body.password
+  };
+  res.cookie('user_id', userID);
+  //console.log(users);
+  res.redirect("/urls");   
 });
 
 function generateRandomString() {
