@@ -18,8 +18,7 @@ const users = {
     password: "dishwasher-funk"
   }
 };
-
-//console.log(users["userRandomID"]["id"])
+console.log(users);
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
@@ -59,6 +58,13 @@ app.get("/urls/register", (req, res) => {
   res.render("urls_registration", templateVars);
 });
 
+app.get("/urls/login", (req, res) => {
+  const templateVars = { 
+    user: users[req.cookies["user_id"]]
+  };
+  res.render("urls_login", templateVars);
+});
+
 app.get("/urls/:shortURL", (req, res) => {
   const templateVars = { 
     shortURL: req.params.shortURL, 
@@ -92,33 +98,70 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   res.redirect("/urls");
 });
 
+// Register
+app.post("/register", (req, res) => {
+  const userID = generateRandomString();
+  res.cookie('user_id', userID);
+
+  if (req.body.email == "" || req.body.password == "") {
+    // if email or password is empty
+    res.sendStatus(400);
+  } else if(emailExists(req.body.email)){
+     // if someone tries to register with an email that is already in the users object
+    res.sendStatus(400);
+  } else {
+    // update users object
+    users[userID]= {
+      id: userID,
+      email: req.body.email,
+      password: req.body.password
+    };
+  }
+  console.log(users);
+  res.redirect("/urls");   
+});
+
 // Login
 app.post("/login", (req, res) => {
-  const username = req.body.username;
-  res.cookie('username', username);
-  res.redirect("/urls");
-  //console.log(req.cookies["username"] )
+  const email = req.body.email;
+  const password = req.body.password;
+
+  if(emailExists(email)){
+    let correctPassword = Object.values(users)
+      .filter(function(user){ return user.email === email; })
+      .map(function(user){ return user.password; })[0];
+
+    if (password === correctPassword){
+      let userID = Object.values(users)
+        .filter(function(user){ return user.email === email; })
+        .map(function(user){ return user.id; })[0];
+      res.cookie('user_id', userID);
+      res.redirect("/urls");
+    } else {
+      // if password is incorrect
+      res.sendStatus(403);
+      //console.log("wrong password")
+    };
+  } else {
+    //If a user with that e-mail cannot be found
+    res.sendStatus(403);
+    //console.log("user not exist");
+  }
 });
 
 // Logout
 app.post("/logout", (req, res) => {
-  res.clearCookie('username');
+  res.clearCookie('user_id');
+  console.log(users);
   res.redirect("/urls");
-  //console.log(req.cookies["username"] )
 });
 
-// Register
-app.post("/register", (req, res) => {
-  const userID = generateRandomString();
-  users[userID]= {
-    id: userID,
-    email: req.body.email,
-    password: req.body.password
-  };
-  res.cookie('user_id', userID);
-  //console.log(users);
-  res.redirect("/urls");   
-});
+function emailExists(newEmail) {
+  return Object.values(users).some(function(user) {
+    return user.email === newEmail;
+  }); 
+}
+
 
 function generateRandomString() {
   return Math.random().toString(20).slice(2, 8);
