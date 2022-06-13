@@ -1,4 +1,5 @@
 const express = require("express");
+const methodOverride = require('method-override');
 const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
@@ -9,6 +10,7 @@ const { getUserByEmail } = require('./helpers.js');
 const urlDatabase = {};
 const users = {};
 
+app.use(methodOverride('_method'));
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieSession({
   name: 'session',
@@ -120,7 +122,7 @@ app.post("/urls", (req, res) => {
 });
 
 // Edit url
-app.post("/urls/:id", (req, res) => {
+app.put("/urls/:id", (req, res) => {
   const url = req.params.id;
   const id = req.session.user_id;
 
@@ -135,12 +137,12 @@ app.post("/urls/:id", (req, res) => {
 });
 
 // Delete url
-app.post("/urls/:id/delete", (req, res) => {
+app.delete("/urls/:id", (req, res) => {
   const url = req.params.id;
   const id = req.session.user_id;
 
   if(shortUrlsForUser(id).includes(url)){
-    delete urlDatabase[req.params.id];
+    delete urlDatabase[url];
     res.redirect("/urls");
     console.log(urlDatabase);
   } else {
