@@ -4,9 +4,9 @@ const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
 const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
+const { getUserByEmail } = require('./helpers.js');
 
 const urlDatabase = {};
-
 const users = {};
 
 app.use(bodyParser.urlencoded({extended: true}));
@@ -151,27 +151,31 @@ app.post("/urls/:id/delete", (req, res) => {
 
 // Register
 app.post("/register", (req, res) => {
-  const userID = generateRandomString();
-  req.session.user_id = userID;
+  const email = req.body.email;
   const password = req.body.password;
   const hashedPassword = bcrypt.hashSync(password, 10);
 
-  if (req.body.email == "" || req.body.password == "") {
+  if (email == "" || password == "") {
     // if email or password is empty
     res.status(400).send("Cannot leave fields empty");
-  } else if(emailExists(req.body.email)){
-     // if someone tries to register with an email that is already in the users object
-    res.status(400).send("User already exists");
   } else {
-    // update users object
-    users[userID]= {
-      id: userID,
-      email: req.body.email,
-      password: hashedPassword
-    };
+     // if someone tries to register with an email that is already in the users object
+     let user = getUserByEmail(email, users);
+     if (user){
+       res.status(400).send("User already exists");
+     } else {
+      // update users object
+      let id = generateRandomString();
+      users[id] = {
+        id: id,
+        email: email,
+        password: hashedPassword
+      };
+      req.session.user_id = id;
+      console.log(users);
+      res.redirect("/urls");  
+    } 
   }
-  console.log(users);
-  res.redirect("/urls");   
 });
 
 // Login
@@ -182,26 +186,17 @@ app.post("/login", (req, res) => {
   if (email === "" || password === ""){
     res.status(400).send("Cannot leave fields empty");
   } else {
-    if(emailExists(email)){
-      let correctPassword = Object.values(users)
-        .filter(function(user){ return user.email === email; })
-        .map(function(user){ return user.password; })[0];
-       
-      if (bcrypt.compareSync(password, correctPassword)){
-        let userID = Object.values(users)
-          .filter(function(user){ return user.email === email; })
-          .map(function(user){ return user.id; })[0];
-          req.session.user_id = userID;
+    let user = getUserByEmail(email, users);
+    if (!user ){
+      res.status(403).send("User Not Found");
+    } else {
+      if (bcrypt.compareSync(password, user.password)){
+        req.session.user_id = user.id;
         res.redirect("/urls");
       } else {
-        // if password is incorrect
-        res.status(403).send("User Not Found");
-      };
-    } else {
-      //If a user with that e-mail cannot be found
-      res.status(403).send("Email or Password does not match records");
-
-    };
+        res.status(403).send("Password does not match records");
+      }
+    } 
   };
 });
 
@@ -213,10 +208,8 @@ app.post("/logout", (req, res) => {
 });
 
 // Functions
-function emailExists(newEmail) {
-  return Object.values(users).some(function(user) {
-    return user.email === newEmail;
-  }); 
+function generateRandomString() {
+  return Math.random().toString(20).slice(2, 8);
 }
 
 function shortUrlsForUser(id) {
@@ -231,7 +224,5 @@ function urlsForUser(id) {
     .filter(function(url){ return url.userID === id; })
     // .map(function(url){ return url.longURL; });
 }
-        
-function generateRandomString() {
-  return Math.random().toString(20).slice(2, 8);
-}
+
+  
